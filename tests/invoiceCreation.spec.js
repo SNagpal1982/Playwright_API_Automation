@@ -2,7 +2,7 @@ import { test, expect, request } from '@playwright/test';
 import { createInvoiceAPI, createMatterAPI, createTimeEntryAPI, getMatterId } from '../Util/helper.js';
 
 test("Creating Invoice through API", async ({ request }) => {
-  console.log("..........Creating Invoice through UI..........");
+  console.log("..........Creating Invoice through API..........");
   console.log("Step : Creating matter API..........");
   const randomNumber = new Date().toISOString();
   const currentDateTime = randomNumber.replace(/[-T:Z.]/g, "");
