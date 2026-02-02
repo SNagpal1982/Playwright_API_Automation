@@ -29,8 +29,8 @@ export async function createInvoiceUI() {
 export async function createMatterAPI(request, matterName) {
     const webTok = await getAuthToken();
     const cookieHeader = await getCookieHeader();
-    const randomNumber = new Date().toISOString();
-    const matterOpenDate = randomNumber.split('T')[0].replace(/-/g, '/');
+    const d = new Date().toISOString();
+    const matterOpenDate = d.split('T')[0].replace(/-/g, '/');
     const response = await request.post(
         'https://qa.zolastaging.com/api2/Matter/',
         {
@@ -82,9 +82,14 @@ export async function createMatterAPI(request, matterName) {
     // Body validation
     const matterId = await response.text();
     expect(matterId).toBeDefined();
+    expect(matterId).toBeTruthy();
+    // Accept numeric or string IDs; if numeric ensure > 0, if string ensure non-empty
+    expect(typeof matterId === 'string' || typeof matterId === 'number').toBeTruthy();
+    if (typeof matterId === 'string') expect(matterId.length).toBeGreaterThan(0);
+    if (typeof matterId === 'number') expect(matterId).toBeGreaterThan(0);
     return matterId;
 }
-export async function getMatterId(request, matterId) {
+export async function getMatterDetails(request, matterId) {
     const webToken = await getAuthToken();
     const getHeader = await getCookieHeader();
     const response = await request.get(`https://qa.zolastaging.com/api2/Matter/${matterId}`, {
@@ -104,11 +109,9 @@ export async function getMatterId(request, matterId) {
     return await response.json();
 }
 export async function createTimeEntryAPI(request, matterDetails) {
-    //Create New Time Entry for the created Matter
+    // Create New Time Entry for the created Matter
     const webTok = await getAuthToken();
     const cookieHeader = await getCookieHeader();
-    const d = new Date();
-    const workdate = dayjs.utc(d).format('MM/DD/YYYY h:mm A');
     const timeEntryResponse = await request.post(
         'https://qa.zolastaging.com/api2/time/',
         {
@@ -144,54 +147,47 @@ export async function createTimeEntryAPI(request, matterDetails) {
     );
     expect(timeEntryResponse.status()).toBe(200);
     const newTimeEntryResponse = await timeEntryResponse.json();
-    return newTimeEntryResponse.tien_id;
+    const timeEntryId = newTimeEntryResponse.tien_id;
+    expect(timeEntryId).toBeTruthy();
+    expect(typeof timeEntryId === 'string' || typeof timeEntryId === 'number').toBeTruthy();
+    if (typeof timeEntryId === 'string') expect(timeEntryId.length).toBeGreaterThan(0);
+    if (typeof timeEntryId === 'number') expect(timeEntryId).toBeGreaterThan(0);
+    return timeEntryId;
 
 }
-export async function createFlatEntryAPI(request, matterId) {
-    //Create New Flat Entry for the created Matter
-    //<< NEED TO REVISIT FOR >>
+export async function createFlatEntryAPI(request, matterDetails) {
+    //Create New Flat Entry for the Matter
     const webTok = await getAuthToken();
     const cookieHeader = await getCookieHeader();
-    const d = new Date();
-    const workdate = dayjs.utc(d).format('MM/DD/YYYY h:mm A');
+    const payload = {
+        "MatterId": matterDetails.matterId,
+        "ServiceId": "868",
+        "Description": "Meeting with the potential new client to     \r\n       discuss their goals, needs and expected outcomes.",
+        "Rate": "1.00",
+        "Quantity": "1.5",
+        "UserId": 34701,
+        "Date": dayjs.utc(matterDetails.MatterOpenDate).format('YYYY-MM-DD'), //Mapped with Date in UI
+        "Total": "1.50",
+        "IsEdit": false,
+        "FlatFeeId": "",
+        "UtbmsActivityId": null,
+        "UtbmsTaskId": null
+    };
     const flatEntryResponse = await request.post(
-        'https://qa.zolastaging.com/api2/Flat/',
+        'https://qa.zolastaging.com/api2/flatfeeentry/save',
         {
             headers: {
                 accept: 'application/json, text/javascript, */*; q=0.01',
                 authorization: `Bearer ${webTok}`,
-                'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                'content-type': 'application/json',
                 'x-requested-with': 'XMLHttpRequest',
                 'svc-type': 'web',
                 'Cookie': cookieHeader
             },
-            form: {
-                tien_matterid: matterId,
-                tien_matteruserid: '34701',
-                tien_timetype: '2',
-                tien_workdate: workdate, //Mapped with Date in UI
-                tien_duration: '9000',  //Value in sec
-                tien_worktypeid: '5897',
-                tien_worktypeIsUTBMS: 'false',
-                tien_rate: '5.00',  //Mapped with rate in UI
-                tien_description: 'Test',
-                tien_total: '123',
-                tien_actualduration: '9000',    //Value in sec
-                tien_isHiustorical: 'false',
-                tien_isNoCharge: 'false',
-                tien_isNcds: 'false',
-                tien_isAdmin: 'false',
-                tien_isSplit: 'false',
-                tien_splitUsers: '[]',
-                ExcludeFromAllocation: 'false',
-            }
+            data: JSON.stringify(payload)
         }
     );
     expect(flatEntryResponse.status()).toBe(200);
-    const newFlatEntryResponse = await flatEntryResponse.json();
-    console.log("New Flat Entry with Id '", await newFlatEntryResponse.tien_id, "' for Matter No. '", newFlatEntryResponse.tien_matterno, "' has been created.");
-
-
 }
 export async function createInvoiceAPI(request, matterDetails) {
     const webTok = await getAuthToken();
@@ -199,7 +195,8 @@ export async function createInvoiceAPI(request, matterDetails) {
 
     let d = new Date();
     const invoiceDate = d.toISOString().replace(/\.\d{3}Z$/, "");
-    let dueDate = new Date(d);       // clone it
+    let dueDate = new Date(d);
+
     dueDate.setDate(dueDate.getDate() + 1);
     dueDate = dueDate.toISOString().replace(/\.\d{3}Z$/, "");
     const toDate = d.toISOString().split("T")[0];
@@ -208,7 +205,7 @@ export async function createInvoiceAPI(request, matterDetails) {
         dueDate: dueDate,
         fromDate: null,
         toDate: toDate,
-        matterId: matterDetails.matterId,      
+        matterId: matterDetails.matterId,
         clientUid: null,
         practiceAreaId: null,
         responsibleAttorneyId: null,
@@ -241,6 +238,10 @@ export async function createInvoiceAPI(request, matterDetails) {
     expect(response.status()).toBe(200);
     const responseBody = await response.json();
     const invoiceId = responseBody.invoices[0].value;
+    expect(invoiceId).toBeTruthy();
+    expect(typeof invoiceId === 'string' || typeof invoiceId === 'number').toBeTruthy();
+    if (typeof invoiceId === 'string') expect(invoiceId.length).toBeGreaterThan(0);
+    if (typeof invoiceId === 'number') expect(invoiceId).toBeGreaterThan(0);
     return invoiceId;
 }
 export async function getCookies() {
