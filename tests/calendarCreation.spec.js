@@ -3,7 +3,7 @@ import { getAuthToken, getCookieHeader } from '../Util/helper.js';
 import dayjs from "dayjs";
 import utc from 'dayjs/plugin/utc.js'; // note the .js in some bundlers
 dayjs.extend(utc);
-import { createCalendarEntryAPI } from '../Util/calendar.js';
+import { createCalendarEntryAPI, getCalendarListAPI } from '../Util/calendar.js';
 
 test("Creating Calendar Event through API", async ({request }) => {
   console.log("..........Creating Calendar Event through API..........");
@@ -15,9 +15,8 @@ test("Creating Calendar Event through API", async ({request }) => {
 
   const d = new Date();
   const postFixSub = d.toISOString().replace(/[-T:Z.]/g, "");
-  const fromDate = dayjs.utc(d).format('MM/DD/YYYY hh:mm A');
+  // const fromDate = dayjs.utc(d).format('MM/DD/YYYY hh:mm A');
 
-  
   const payLoad = {
     "Subject": "SN Test Calendar Event API-" + postFixSub,
     // "FromDate": fromDate,   //Date Format 'MM/DD/YYYY hh:mm AM/PM'
@@ -25,7 +24,15 @@ test("Creating Calendar Event through API", async ({request }) => {
     // "Duration": 30,         //Duration in Minutes
     // "MatterId": "1106208",
   };
-  await createCalendarEntryAPI(request, authDetails, payLoad);
+  const response = await createCalendarEntryAPI(request, authDetails, payLoad);
   console.log("Calendar Event has been created Successfully through API.");
+  const startDateRange = response.fromDateString.split(" ")[0];
+  const endDateRange = response.toDateString.split(" ")[0];
+  const parameters = {
+    StartDateRange : startDateRange, //MM/DD/YYYY format
+    EndDateRange  : endDateRange, //MM/DD/YYYY format 
+  };
+  console.log("..........Validate the existance of newly Created New Calendar Event..........");
+  await getCalendarListAPI(request, authDetails, payLoad, parameters);
 
 });

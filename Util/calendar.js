@@ -49,8 +49,8 @@ export async function createCalendarEntryAPI(request, authDetails, payLoad) {
     payLoad.RecurrenceRule = null;
     payLoad.IsRecurrence = false;
 
-    console.log("Calendar Event Payload: " + JSON.stringify(payLoad));
-    
+    console.log("Creating Calendar Event with Payload: " + JSON.stringify(payLoad));
+
     // Ensure saving is enabled so the server persists the check
     const response = await request.post(
         'https://qa.zolastaging.com/api2/Calendar/',
@@ -68,10 +68,65 @@ export async function createCalendarEntryAPI(request, authDetails, payLoad) {
     );
     // Basic HTTP success check
     expect(response.status()).toBe(200);
+    
+    const calendarEntry = await response.json();
     console.log("Calendar Event has been created with below Details:");
-    console.log("Event Subject: " + payLoad.Subject);
-    console.log("Start time : " + payLoad.FromDate);
-    console.log("End time : " + payLoad.ToDate);
-    const durationMinutes = dayjs(payLoad.ToDate).diff(dayjs(payLoad.FromDate), 'minute');
-    console.log("Duration (in minutes) : " + durationMinutes);
-}    
+    console.log("Calendar Event ID: " + calendarEntry.id);
+    console.log("Event Subject: " + (calendarEntry.subject || payLoad.Subject));
+    console.log("Start time : " + (calendarEntry.fromDateString || payLoad.FromDate));
+    console.log("End time : " + (calendarEntry.toDateString || payLoad.ToDate));
+    
+    if (calendarEntry.fromDateString && calendarEntry.toDateString) {
+        const durationMinutes = dayjs(calendarEntry.toDateString).diff(dayjs(calendarEntry.fromDateString), 'minute');
+        console.log("Duration (in minutes) : " + durationMinutes);
+    }
+    
+    return calendarEntry;
+}
+
+export async function getCalendarListAPI(request, authDetails, payLoad = {}, options = {}) {
+  const params = {};
+  const set = (k, v) => { if (v !== undefined && v !== null && v !== '') params[k] = String(v); };
+
+  set('StartDateRange', options.StartDateRange);
+  set('EndDateRange', options.EndDateRange);
+  set('pageSize', options.pageSize || 10000);
+  set('format',  options.format || 'json');
+  if (options.ownerList) set('OwnerList', options.ownerList);
+  if (options.categoryListFilter) set('CategoryListFilter', options.categoryListFilter);
+  set('Iskendo', options.isKendo || true);
+  set('IsFromEdit', options.isFromEdit || false);
+
+  const qs = new URLSearchParams(params).toString();
+  const url = `https://qa.zolastaging.com/API2/CALENDAR${qs ? `?${qs}` : ''}`;
+  console.log("Fetching Calendar List with URL: " + url);
+
+    const response = await request.get(url, {
+    headers: {
+      accept: 'application/json, text/javascript, */*; q=0.01',
+      'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8,hi;q=0.7',
+      authorization: `Bearer ${authDetails.webToken}`,
+      'x-requested-with': 'XMLHttpRequest',
+      'svc-type': 'web',
+      Cookie: authDetails.cookieHeader,
+    }
+  });
+
+  if (response.status() !== 200) {
+    const body = await response.text();
+    console.error('getCalendarListAPI failed. status=', response.status(), 'body:', body.slice(0, 2000));
+    throw new Error(`Calendar list fetch failed: ${response.status()}`);
+  }
+
+  const contentType = (response.headers()['content-type'] || '').toLowerCase();
+  if (!contentType.includes('application/json')) {
+    const body = await response.text();
+    console.error('Expected JSON but got:', body.slice(0, 2000));
+    throw new Error('Calendar list returned non-JSON response');
+  }
+
+  const data = await response.json();
+//   console.log("Calendar List fetched successfully."  +JSON.stringify(data));
+//   console.log('Calendar List fetched. Total records:', Array.isArray(data) ? data.length : (data && data.recordCount) || 0);
+  return { raw: data, count: Array.isArray(data) ? data.length : (data && data.recordCount) || null };
+}

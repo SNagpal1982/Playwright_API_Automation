@@ -1109,8 +1109,8 @@ export async function createExpenseNewCheckEntryAPI(request, matterDetails) {
         }
     );
     // Basic HTTP success check
-    expect(resposne.status()).toBe(201); 
-}    
+    expect(resposne.status()).toBe(201);
+}
 
 export async function createInvoiceAPI(request, matterDetails) {
     const webTok = await getAuthToken();
@@ -1190,8 +1190,11 @@ export async function getAuthToken() {
 }
 
 export async function dateFormat() {
-  const d = new Date();
-  console.log("Current Date in UTC format: " + dayjs.utc(d).format('DD-MM-YYYY'));
-  console.log("Current Date in UTC format: " + dayjs.utc(d).format('hh:mm:ss'));
+    const d = new Date();
+    const randomNumber = new Date().toISOString();
+    const currentDateTime = randomNumber.replace(/[-T:Z.]/g, "");
+    console.log("Current DateTime: " + currentDateTime);
+    // console.log("Current Date in UTC format: " + dayjs.utc(d).format('DD-MM-YYYY'));
+    // console.log("Current Date in UTC format: " + dayjs.utc(d).format('hh:mm:ss'));
 
 }
